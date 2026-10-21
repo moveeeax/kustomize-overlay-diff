@@ -1,0 +1,82 @@
+name: kustomize-overlay-diff
+description: Report what each kustomize overlay changes versus its base, and fail the build on dead patches, missing bases and shadowed image overrides.
+author: Michael Tarassov
+branding:
+  icon: git-merge
+  color: blue
+
+inputs:
+  dir:
+    description: Root of the kustomize tree to audit.
+    required: false
+    default: .
+  format:
+    description: "Output format: table, json or markdown. markdown is also written to the job summary."
+    required: false
+    default: markdown
+  min-severity:
+    description: "Lowest severity to report: warning or error."
+    required: false
+    default: warning
+  fail-on:
+    description: "Fail the step once a finding reaches this severity: warning, error or never."
+    required: false
+    default: error
+  ignore:
+    description: Comma-separated rule ids to suppress.
+    required: false
+    default: ""
+  go-version:
+    description: Go version used to build the tool.
+    required: false
+    default: "1.23"
+
+outputs:
+  exit-code:
+    description: "0 clean, 1 findings at or above fail-on, 2 a usage or parse error."
+    value: ${{ steps.audit.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: false
+
+    - name: Build kustomize-overlay-diff
+      shell: bash
+      run: go build -o "${RUNNER_TEMP}/kustomize-overlay-diff" ./cmd/kustomize-overlay-diff
+      working-directory: ${{ github.action_path }}
+
+    - name: Audit overlays
+      id: audit
+      shell: bash
+      env:
+        INPUT_DIR: ${{ inputs.dir }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_MIN_SEVERITY: ${{ inputs.min-severity }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+      run: |
+        set -uo pipefail
+        args=(--dir "$INPUT_DIR" --format "$INPUT_FORMAT" \
+              --min-severity "$INPUT_MIN_SEVERITY" --fail-on "$INPUT_FAIL_ON")
+        if [ -n "$INPUT_IGNORE" ]; then
+          IFS=',' read -ra rules <<< "$INPUT_IGNORE"
+          for rule in "${rules[@]}"; do
+            [ -n "$rule" ] && args+=(--ignore "$rule")
+          done
+        fi
+        report="${RUNNER_TEMP}/kustomize-overlay-diff.txt"
+        # A non-zero exit is the whole point of this step, so step out of the
+        # bash -e that GitHub wraps composite runs in before calling the tool.
+        set +e
+        "${RUNNER_TEMP}/kustomize-overlay-diff" "${args[@]}" | tee "$report"
+        code=${PIPESTATUS[0]}
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ "$INPUT_FORMAT" = "markdown" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        exit "$code"

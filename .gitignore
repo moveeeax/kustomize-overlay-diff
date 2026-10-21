@@ -1,0 +1,12 @@
+# Built binary at the repo root only — a bare pattern would also swallow the
+# cmd/kustomize-overlay-diff source directory.
+/kustomize-overlay-diff
+/dist/
+/coverage.out
+
+*.test
+/*.exe
+
+# Fixtures are part of the test suite and always tracked.
+!testdata/**
+!examples/**

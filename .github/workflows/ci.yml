@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.22", "1.23"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -race -count=1
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "gofmt needed in:"; echo "$unformatted"; exit 1
+          fi
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clean tree passes
+        uses: ./
+        with:
+          dir: testdata/clean
+          fail-on: error
+
+      - name: Messy example is caught
+        id: messy
+        continue-on-error: true
+        uses: ./
+        with:
+          dir: examples/shop
+          fail-on: error
+
+      - name: The example must have failed the audit
+        run: |
+          if [ "${{ steps.messy.outputs.exit-code }}" != "1" ]; then
+            echo "expected exit 1 on examples/shop, got ${{ steps.messy.outputs.exit-code }}"
+            exit 1
+          fi

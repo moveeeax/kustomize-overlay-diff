@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Someone needed "just the api" here and reached into the base file by file
+# instead of inheriting the directory. shop-worker is gone from the render.
+resources:
+  - ../../base/api-deployment.yaml
+  - ../../base/api-service.yaml
+  - ../../components/legacy-metrics
+
+namePrefix: prod-
+namespace: shop-prod
+
+patchesStrategicMerge:
+  - hpa-tuning.yaml
