@@ -1,7 +1,7 @@
 # kustomize-overlay-diff
 
 [![ci](https://github.com/moveeeax/kustomize-overlay-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/moveeeax/kustomize-overlay-diff/actions/workflows/ci.yml)
-[![go](https://img.shields.io/badge/go-1.22%2B-00ADD8)](https://go.dev)
+[![go](https://img.shields.io/badge/go-1.26%2B-00ADD8)](https://go.dev)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Reads a kustomize tree and answers the question a reviewer actually has: what
@@ -85,6 +85,8 @@ or YAML that does not parse.
 
 ## Install
 
+Requires Go 1.26 or newer.
+
 ```sh
 go install github.com/moveeeax/kustomize-overlay-diff/cmd/kustomize-overlay-diff@latest
 ```
@@ -114,7 +116,7 @@ the result if you want to keep the step green and decide later.
 | `min-severity` | `warning` |
 | `fail-on` | `error` |
 | `ignore` | — |
-| `go-version` | `1.23` |
+| `go-version` | `1.27` |
 
 ## How it works
 

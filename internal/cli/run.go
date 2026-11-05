@@ -13,7 +13,7 @@ import (
 )
 
 // Version is stamped at release time.
-var Version = "0.1.0"
+var Version = "0.2.0"
 
 type stringList []string
 
