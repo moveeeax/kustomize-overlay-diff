@@ -68,14 +68,28 @@ Other forms:
 kustomize-overlay-diff --dir ./k8s --format markdown --fail-on error
 kustomize-overlay-diff --dir ./k8s --ignore shadowed-image --min-severity error
 kustomize-overlay-diff --dir ./k8s --format json | jq '.findings[] | select(.severity=="error")'
+kustomize-overlay-diff --dir ./k8s --format github
 ```
+
+`--format github` prints one GitHub Actions workflow command per finding and
+nothing else; inside a workflow step each becomes an annotation on that file
+and line:
+
+```
+::error file=k8s/overlays/prod/kustomization.yaml,line=15,title=dead-patch::patch hpa-tuning.yaml targets HorizontalPodAutoscaler/shop-api, which matches no resource in the chain
+```
+
+`error` findings become `::error`, `warning` findings `::warning`. Paths are
+relative to the working directory, which is what GitHub expects when the step
+runs at the checkout root; a file outside the working directory keeps its
+absolute path.
 
 ### Flags
 
 | flag | default | meaning |
 |---|---|---|
 | `--dir` | `.` | root of the tree to audit; every kustomization under it is analysed |
-| `--format` | `table` | `table`, `json` or `markdown` |
+| `--format` | `table` | `table`, `json`, `markdown` or `github` |
 | `--min-severity` | `warning` | hide anything below this |
 | `--ignore` | — | rule id to suppress; repeatable, comma-separated accepted |
 | `--fail-on` | `error` | exit 1 once a finding reaches this severity, or `never` |
@@ -106,8 +120,10 @@ go build -o kustomize-overlay-diff ./cmd/kustomize-overlay-diff
     fail-on: error
 ```
 
-The markdown report lands in the job summary, and `outputs.exit-code` carries
-the result if you want to keep the step green and decide later.
+The markdown report lands in the job summary, each finding is annotated on its
+file and line so it shows in the pull request diff, and `outputs.exit-code`
+carries the result if you want to keep the step green and decide later. Set
+`annotations: false` to keep only the summary.
 
 | input | default |
 |---|---|
@@ -116,6 +132,7 @@ the result if you want to keep the step green and decide later.
 | `min-severity` | `warning` |
 | `fail-on` | `error` |
 | `ignore` | — |
+| `annotations` | `true` |
 | `go-version` | `1.27` |
 
 ## How it works

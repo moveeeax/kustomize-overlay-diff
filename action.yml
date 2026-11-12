@@ -11,7 +11,7 @@ inputs:
     required: false
     default: .
   format:
-    description: "Output format: table, json or markdown. markdown is also written to the job summary."
+    description: "Output format: table, json, markdown or github. markdown is also written to the job summary."
     required: false
     default: markdown
   min-severity:
@@ -26,6 +26,10 @@ inputs:
     description: Comma-separated rule ids to suppress.
     required: false
     default: ""
+  annotations:
+    description: "Also annotate each finding on its file and line (error or warning), so it shows in the pull request diff: true or false."
+    required: false
+    default: "true"
   go-version:
     description: Go version used to build the tool.
     required: false
@@ -58,10 +62,14 @@ runs:
         INPUT_MIN_SEVERITY: ${{ inputs.min-severity }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_IGNORE: ${{ inputs.ignore }}
+        INPUT_ANNOTATIONS: ${{ inputs.annotations }}
       run: |
         set -uo pipefail
-        args=(--dir "$INPUT_DIR" --format "$INPUT_FORMAT" \
-              --min-severity "$INPUT_MIN_SEVERITY" --fail-on "$INPUT_FAIL_ON")
+        case "$INPUT_ANNOTATIONS" in
+          true|false) ;;
+          *) echo "annotations must be true or false, got '$INPUT_ANNOTATIONS'"; exit 2 ;;
+        esac
+        args=(--dir "$INPUT_DIR" --min-severity "$INPUT_MIN_SEVERITY")
         if [ -n "$INPUT_IGNORE" ]; then
           IFS=',' read -ra rules <<< "$INPUT_IGNORE"
           for rule in "${rules[@]}"; do
@@ -72,8 +80,15 @@ runs:
         # A non-zero exit is the whole point of this step, so step out of the
         # bash -e that GitHub wraps composite runs in before calling the tool.
         set +e
-        "${RUNNER_TEMP}/kustomize-overlay-diff" "${args[@]}" | tee "$report"
+        "${RUNNER_TEMP}/kustomize-overlay-diff" "${args[@]}" \
+          --format "$INPUT_FORMAT" --fail-on "$INPUT_FAIL_ON" | tee "$report"
         code=${PIPESTATUS[0]}
+        # Workflow commands on stdout become annotations. A second pass with the
+        # same filters prints them; the first run already decided the exit code.
+        if [ "$INPUT_ANNOTATIONS" = "true" ] && [ "$INPUT_FORMAT" != "github" ]; then
+          "${RUNNER_TEMP}/kustomize-overlay-diff" "${args[@]}" \
+            --format github --fail-on never 2>/dev/null
+        fi
         set -e
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
         if [ "$INPUT_FORMAT" = "markdown" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then

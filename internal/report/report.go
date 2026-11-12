@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
@@ -13,7 +15,7 @@ import (
 )
 
 // Formats lists the accepted --format values.
-func Formats() []string { return []string{"table", "json", "markdown"} }
+func Formats() []string { return []string{"table", "json", "markdown", "github"} }
 
 func Write(w io.Writer, r *kustomize.Report, format string) error {
 	switch format {
@@ -23,6 +25,12 @@ func Write(w io.Writer, r *kustomize.Report, format string) error {
 		return JSON(w, r)
 	case "markdown":
 		return Markdown(w, r)
+	case "github":
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		return GitHub(w, r, cwd)
 	}
 	return fmt.Errorf("unknown format %q (want %s)", format, strings.Join(Formats(), ", "))
 }
@@ -132,6 +140,53 @@ func Markdown(w io.Writer, r *kustomize.Report) error {
 		fmt.Fprintf(w, "| %s | `%s` | `%s` | %s |\n", f.Severity, f.Rule, f.Location(), mdEscape(f.Message))
 	}
 	return nil
+}
+
+// GitHub prints one workflow command per finding, which a GitHub Actions
+// runner turns into an annotation on that file and line. GitHub wants paths
+// relative to the checkout, so each file is made relative to base, normally
+// the working directory the Action runs in (the workspace).
+func GitHub(w io.Writer, r *kustomize.Report, base string) error {
+	for _, f := range r.Findings {
+		level := "warning"
+		if f.Severity == kustomize.SeverityError {
+			level = "error"
+		}
+		props := "file=" + ghProperty(annotationPath(r.Root, f.File, base))
+		if f.Line > 0 {
+			props += fmt.Sprintf(",line=%d", f.Line)
+		}
+		props += ",title=" + ghProperty(f.Rule)
+		if _, err := fmt.Fprintf(w, "::%s %s::%s\n", level, props, ghData(f.Message)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// annotationPath resolves a finding's file against the tree root and returns
+// it relative to base. A file outside base keeps its absolute path, since a
+// "../" path would not name anything in the checkout either.
+func annotationPath(root, file, base string) string {
+	abs := file
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(root, file)
+	}
+	rel, err := filepath.Rel(base, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return filepath.ToSlash(abs)
+	}
+	return filepath.ToSlash(rel)
+}
+
+// ghData and ghProperty escape the way @actions/core does, so a message or
+// path holding a newline, comma or colon cannot end the command early.
+func ghData(s string) string {
+	return strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A").Replace(s)
+}
+
+func ghProperty(s string) string {
+	return strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A", ":", "%3A", ",", "%2C").Replace(s)
 }
 
 func transforms(ov kustomize.Overlay) string {
