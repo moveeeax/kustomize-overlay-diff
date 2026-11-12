@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] - 0.2.0
+## [0.3.0] - 2026-11-12
 
 ### Added
 
@@ -12,6 +12,8 @@ All notable changes to this project are documented here. The format follows
   `::warning` workflow command with its file, line and rule id as the title.
 - The GitHub Action annotates findings on their file and line by default,
   alongside the markdown job summary; new input `annotations` (default `true`).
+
+## [0.2.0] - 2026-11-05
 
 ### Changed
 
@@ -28,5 +30,6 @@ All notable changes to this project are documented here. The format follows
   `missing-base`, `cycle`, `shadowed-image`, `dropped-resource`), table, JSON
   and markdown output, and a composite GitHub Action.
 
-[Unreleased]: https://github.com/moveeeax/kustomize-overlay-diff/compare/v0.1.0...HEAD
+[0.3.0]: https://github.com/moveeeax/kustomize-overlay-diff/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/moveeeax/kustomize-overlay-diff/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/moveeeax/kustomize-overlay-diff/releases/tag/v0.1.0
