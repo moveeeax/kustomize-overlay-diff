@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased] - 0.2.0
 
+### Added
+
+- `--format github` prints each finding as a GitHub Actions `::error` or
+  `::warning` workflow command with its file, line and rule id as the title.
+- The GitHub Action annotates findings on their file and line by default,
+  alongside the markdown job summary; new input `annotations` (default `true`).
+
 ### Changed
 
 - Minimum Go version is now 1.26; CI tests Go 1.26 and 1.27.

@@ -114,6 +114,23 @@ func TestMarkdownOutputHasATable(t *testing.T) {
 	}
 }
 
+func TestGitHubFormatPrintsWorkflowCommands(t *testing.T) {
+	code, out, _ := run(t, "--dir", tree("deadpatch"), "--format", "github")
+	if code != 1 {
+		t.Fatalf("--format github must keep the exit code, got %d\n%s", code, out)
+	}
+	// The tests run in internal/cli and testdata sits above it, so the path
+	// stays absolute instead of turning into ../../.
+	if !strings.HasPrefix(out, "::error file=/") ||
+		!strings.Contains(out, "testdata/deadpatch/overlays/dev/kustomization.yaml,line=") ||
+		!strings.Contains(out, ",title=dead-patch::") {
+		t.Fatalf("want a dead-patch error annotation, got:\n%s", out)
+	}
+	if strings.Contains(out, "tree ") || strings.Contains(out, "findings") {
+		t.Fatalf("github format should print only workflow commands:\n%s", out)
+	}
+}
+
 func TestUsageErrorsExitTwo(t *testing.T) {
 	cases := [][]string{
 		{"--dir", tree("clean"), "--format", "yaml"},
